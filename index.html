@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Breadth Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e;
+    --green: #3fb950; --red: #f85149; --amber: #d29922;
+    --blue: #58a6ff; --purple: #bc8cff;
+    --green-dim: rgba(63,185,80,0.15); --red-dim: rgba(248,81,73,0.15); --amber-dim: rgba(210,153,34,0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; }
+
+  /* ── Loading / Error states ── */
+  #loading-screen {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px;
+  }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid var(--border);
+    border-top-color: var(--blue); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--muted); font-size: 15px; }
+  .error-box {
+    background: var(--red-dim); border: 1px solid var(--red); border-radius: 10px;
+    padding: 24px 32px; max-width: 520px; text-align: center; line-height: 1.6;
+  }
+  .error-box h2 { color: var(--red); margin-bottom: 10px; }
+  .error-box p { color: var(--muted); font-size: 13px; }
+  .error-box code { background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+
+  /* ── Header ── */
+  header {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 16px 24px; display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  header h1 { font-size: 18px; font-weight: 600; }
+  .date-info { color: var(--muted); font-size: 13px; }
+  .header-right { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .condition-badge { padding: 6px 18px; border-radius: 20px; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; }
+  .condition-bull   { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+  .condition-bear   { background: var(--red-dim);   color: var(--red);   border: 1px solid var(--red);   }
+  .condition-neutral{ background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber); }
+  .refresh-btn {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; transition: border-color 0.15s, color 0.15s;
+  }
+  .refresh-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .refresh-btn.spinning svg { animation: spin 0.8s linear infinite; }
+
+  /* ── Main layout ── */
+  .main { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .controls label { color: var(--muted); font-size: 12px; }
+  .controls select {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }
+
+  /* ── Metric cards ── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card.bull { border-left: 3px solid var(--green); }
+  .card.bear { border-left: 3px solid var(--red); }
+  .card.neutral { border-left: 3px solid var(--amber); }
+  .card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .card-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .card-sub { font-size: 12px; margin-top: 4px; }
+  .green { color: var(--green); } .red { color: var(--red); } .amber { color: var(--amber); }
+
+  /* ── Interpretation cards ── */
+  .interp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .interp-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .interp-title  { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; }
+  .interp-signal { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .interp-desc   { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ── Charts ── */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .charts-grid.wide { grid-template-columns: 2fr 1fr; }
+  @media (max-width: 900px) { .charts-grid, .charts-grid.wide { grid-template-columns: 1fr; } }
+  .chart-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .chart-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── Table ── */
+  .table-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .table-panel h3 { padding: 14px 16px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { padding: 8px 12px; text-align: right; font-size: 11px; font-weight: 500; color: var(--muted); background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child { text-align: left; }
+  td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+  td:first-child { text-align: left; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+  .up { color: var(--green); } .dn { color: var(--red); } .neu { color: var(--amber); }
+  .bull-row { background: rgba(63,185,80,0.04); }
+  .bear-row { background: rgba(248,81,73,0.04); }
+
+  footer { padding: 16px 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); text-align: center; }
+  footer a { color: var(--blue); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<!-- Loading / error screen -->
+<div id="loading-screen">
+  <div class="spinner" id="spinner"></div>
+  <div class="loading-text" id="loading-text">Loading market data from Google Sheets…</div>
+</div>
+
+<!-- Dashboard (hidden until data loads) -->
+<div id="app" style="display:none">
+  <header>
+    <div>
+      <h1>Market Breadth Dashboard</h1>
+      <div class="date-info">Stockbee Market Monitor &bull; As of <span id="hdr-date"></span> &bull; Universe: <span id="hdr-universe"></span> stocks</div>
+    </div>
+    <div class="header-right">
+      <div>
+        <span id="hdr-sp" style="font-size:22px;font-weight:700;"></span>
+        <span id="hdr-sp-chg" style="font-size:14px;margin-left:8px;"></span>
+      </div>
+      <span id="condition-badge" class="condition-badge"></span>
+      <button class="refresh-btn" id="refresh-btn" onclick="loadData()">
+        <svg id="refresh-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="controls">
+      <label>Lookback period:</label>
+      <select id="range-select" onchange="applyRange()">
+        <option value="60">3 Months</option>
+        <option value="120">6 Months</option>
+        <option value="252" selected>1 Year</option>
+        <option value="504">2 Years</option>
+        <option value="756">3 Years</option>
+        <option value="9999">All Data</option>
+      </select>
+    </div>
+
+    <div class="cards" id="cards"></div>
+    <div class="interp-grid" id="interp"></div>
+
+    <div class="charts-grid wide">
+      <div class="chart-panel">
+        <div class="chart-title">S&amp;P 500 with 5-Day Breadth Ratio Overlay</div>
+        <div class="chart-wrap"><canvas id="chartSP"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title">5-Day &amp; 10-Day Cumulative Ratio</div>
+        <div class="chart-wrap"><canvas id="chartRatios"></canvas></div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-panel">
+        <div class="chart-title">Daily Thrust — Stocks Up/Down 4%+</div>
+        <div class="chart-wrap"><canvas id="chartDaily"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title">Quarter Momentum — Up/Down 25%+ in 90 Days</div>
+        <div class="chart-wrap"><canvas id="chartQuarter"></canvas></div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-panel">
+        <div class="chart-title">T2108 — % of Stocks Above 40-Day MA</div>
+        <div class="chart-wrap"><canvas id="chartT2108"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-title">34-Day Momentum — Up/Down 13%+ in 34 Days</div>
+        <div class="chart-wrap"><canvas id="chart34d"></canvas></div>
+      </div>
+    </div>
+
+    <div class="table-panel">
+      <h3>Recent Trading Days — Last 20 Sessions</h3>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Date</th>
+            <th>Up 4%</th><th>Dn 4%</th>
+            <th>5D Ratio</th><th>10D Ratio</th>
+            <th>Up 25% Qtr</th><th>Dn 25% Qtr</th>
+            <th>Up 25% Mo</th><th>Dn 25% Mo</th>
+            <th>Up 13% 34d</th><th>Dn 13% 34d</th>
+            <th>T2108</th><th>S&amp;P 500</th>
+          </tr></thead>
+          <tbody id="recent-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Data: <a href="https://docs.google.com/spreadsheets/d/1O6OhS7ciA8zwfycBfGPbP2fWJnR0pn2UUvFZVDP9jpE" target="_blank">Stockbee Market Monitor</a>
+    &bull; Fetched live from Google Sheets &bull; Last loaded: <span id="last-loaded"></span>
+  </footer>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────
+const SHEET_ID = '1O6OhS7ciA8zwfycBfGPbP2fWJnR0pn2UUvFZVDP9jpE';
+const GID      = '1082103394';
+const CSV_URL  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+
+// ── State ────────────────────────────────────────────────────────────────
+let DATA = [];
+let VIEW = [];
+const charts = {};
+
+// ── CSV Parser (handles quoted fields with commas) ───────────────────────
+function parseCSVLine(line) {
+  const fields = [];
+  let inQuote = false, cur = '';
+  for (const ch of line) {
+    if (ch === '"') { inQuote = !inQuote; }
+    else if (ch === ',' && !inQuote) { fields.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  fields.push(cur.trim());
+  return fields;
+}
+
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  // Skip first 2 header rows, parse the rest
+  const dateRe = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
+  const rows = [];
+  for (let i = 2; i < lines.length; i++) {
+    const f = parseCSVLine(lines[i]);
+    if (f.length < 16) continue;
+    if (!dateRe.test(f[0])) continue;
+    try {
+      const r5  = parseFloat(f[3]);
+      const t21 = parseFloat(f[14]);
+      const sp  = parseFloat(f[15].replace(/,/g, ''));
+      if (r5 < 0.1 || r5 > 15) continue;
+      if (t21 < 0 || t21 > 100) continue;
+      if (sp <= 0 || sp > 100000) continue;
+      // Only include 2015+
+      const yr = parseInt(f[0].split('/')[2]);
+      if (yr < 2015) continue;
+      rows.push({
+        date: f[0],
+        up4: +f[1],  dn4: +f[2],
+        r5,          r10: parseFloat(f[4]),
+        up25q: +f[5], dn25q: +f[6],
+        up25m: +f[7], dn25m: +f[8],
+        up50m: +f[9], dn50m: +f[10],
+        up13: +f[11], dn13: +f[12],
+        universe: +f[13],
+        t2108: t21,
+        sp
+      });
+    } catch { continue; }
+  }
+  // CSV is newest-first; reverse to chronological
+  return rows.reverse();
+}
+
+// ── Data loading ─────────────────────────────────────────────────────────
+async function loadData() {
+  const btn = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  const screen = document.getElementById('loading-screen');
+  const app = document.getElementById('app');
+
+  // Show loading state
+  if (app.style.display !== 'none') {
+    btn.classList.add('spinning');
+    btn.disabled = true;
+  } else {
+    screen.style.display = 'flex';
+    app.style.display = 'none';
+    document.getElementById('spinner').style.display = 'block';
+    document.getElementById('loading-text').textContent = 'Loading market data from Google Sheets…';
+  }
+
+  try {
+    const resp = await fetch(CSV_URL, { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    const rows = parseCSV(text);
+    if (rows.length < 10) throw new Error('Too few rows parsed — check sheet sharing settings.');
+
+    DATA = rows;
+    document.getElementById('last-loaded').textContent = new Date().toLocaleTimeString();
+    applyRange();
+
+    screen.style.display = 'none';
+    app.style.display = 'block';
+  } catch (err) {
+    screen.style.display = 'flex';
+    app.style.display = 'none';
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('loading-text').innerHTML = `
+      <div class="error-box">
+        <h2>Unable to load data</h2>
+        <p>Make sure the Google Sheet is set to <strong style="color:var(--text)">"Anyone with the link can view"</strong>.<br><br>
+        In Google Sheets: <code>Share → Change → Anyone with the link → Viewer</code><br><br>
+        Error: <code>${err.message}</code></p>
+      </div>`;
+  } finally {
+    btn.classList.remove('spinning');
+    btn.disabled = false;
+  }
+}
+
+// ── Range filter ──────────────────────────────────────────────────────────
+function applyRange() {
+  const n = +document.getElementById('range-select').value;
+  VIEW = n >= DATA.length ? DATA : DATA.slice(-n);
+  renderAll();
+}
+
+// ── Signal helpers ────────────────────────────────────────────────────────
+const colMap = { green: '#3fb950', red: '#f85149', amber: '#d29922' };
+function signal5d(v) {
+  if (v >= 2.0) return ['STRONG BULL', 'bull', 'green'];
+  if (v >= 1.5) return ['BULLISH',     'bull', 'green'];
+  if (v >= 1.0) return ['NEUTRAL',   'neutral','amber'];
+  if (v >= 0.7) return ['CAUTIOUS',  'neutral','amber'];
+  return ['BEARISH', 'bear', 'red'];
+}
+function signalT2108(v) {
+  if (v >= 60) return ['OVERBOUGHT', 'bull',   'green'];
+  if (v >= 40) return ['HEALTHY',    'bull',   'green'];
+  if (v >= 25) return ['NEUTRAL',  'neutral',  'amber'];
+  if (v >= 15) return ['OVERSOLD',   'bear',   'red'];
+  return ['EXTREME LOW', 'bear', 'red'];
+}
+function signalQtr(up, dn) {
+  const r = up / Math.max(dn, 1);
+  if (r >= 2.0) return ['VERY STRONG', 'bull', 'green'];
+  if (r >= 1.3) return ['STRONG',      'bull', 'green'];
+  if (r >= 0.8) return ['NEUTRAL',   'neutral','amber'];
+  return ['WEAK', 'bear', 'red'];
+}
+function overallCondition(d) {
+  let bulls = 0, bears = 0;
+  if (d.r5 >= 1.5) bulls++;    else if (d.r5 < 1.0) bears++;
+  if (d.r10 >= 1.2) bulls++;   else if (d.r10 < 0.8) bears++;
+  if (d.t2108 >= 40) bulls++;  else if (d.t2108 < 25) bears++;
+  if (d.up25q > d.dn25q * 1.3) bulls++; else if (d.up25q * 1.3 < d.dn25q) bears++;
+  if (bulls >= 3) return ['BULLISH',  'condition-bull'];
+  if (bears >= 3) return ['BEARISH',  'condition-bear'];
+  return ['NEUTRAL', 'condition-neutral'];
+}
+
+// ── Render: cards ─────────────────────────────────────────────────────────
+function renderCards() {
+  const d = VIEW[VIEW.length - 1];
+  const prev = VIEW[VIEW.length - 2] || d;
+  const spChg = d.sp - prev.sp;
+  const spChgPct = (spChg / prev.sp * 100).toFixed(2);
+  const [s5,,col5]  = signal5d(d.r5);
+  const [s10,c10,col10] = signal5d(d.r10);
+  const [sT, cT, colT]  = signalT2108(d.t2108);
+  const [sQ, cQ, colQ]  = signalQtr(d.up25q, d.dn25q);
+  const [,c5] = signal5d(d.r5);
+  const spColor = spChg >= 0 ? 'green' : 'red';
+
+  const cards = [
+    { label:'Daily Thrust', value:`${d.up4}↑`, sub:`${d.dn4}↓ stocks ±4%+ today`, cls: d.up4>d.dn4?'bull':'bear', color: d.up4>d.dn4?'#3fb950':'#f85149' },
+    { label:'5-Day Ratio',  value: d.r5.toFixed(2),  sub: s5,  cls: c5,  color: colMap[col5]  },
+    { label:'10-Day Ratio', value: d.r10.toFixed(2), sub: s10, cls: c10, color: colMap[col10] },
+    { label:'Quarter Momentum', value:`${d.up25q}↑`, sub:`${d.dn25q}↓ (25%/90d) — ${sQ}`, cls: cQ, color: colMap[colQ] },
+    { label:'T2108', value:`${d.t2108.toFixed(1)}%`, sub:`${sT} — % above 40-day MA`, cls: cT, color: colMap[colT] },
+    { label:'S&P 500', value: d.sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),
+      sub:`${spChg>=0?'+':''}${spChg.toFixed(2)} (${spChg>=0?'+':''}${spChgPct}%)`,
+      cls: spChg>=0?'bull':'bear', color: colMap[spColor] }
+  ];
+  document.getElementById('cards').innerHTML = cards.map(c => `
+    <div class="card ${c.cls}">
+      <div class="card-label">${c.label}</div>
+      <div class="card-value" style="color:${c.color}">${c.value}</div>
+      <div class="card-sub ${c.cls==='bull'?'green':c.cls==='bear'?'red':'amber'}">${c.sub}</div>
+    </div>`).join('');
+
+  document.getElementById('hdr-date').textContent = d.date;
+  document.getElementById('hdr-universe').textContent = d.universe.toLocaleString();
+  document.getElementById('hdr-sp').textContent = d.sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const spEl = document.getElementById('hdr-sp-chg');
+  spEl.textContent = `${spChg>=0?'+':''}${spChg.toFixed(2)} (${spChg>=0?'+':''}${spChgPct}%)`;
+  spEl.style.color = spChg >= 0 ? '#3fb950' : '#f85149';
+  const [oc, occ] = overallCondition(d);
+  const badge = document.getElementById('condition-badge');
+  badge.textContent = oc;
+  badge.className = 'condition-badge ' + occ;
+}
+
+// ── Render: interpretation ────────────────────────────────────────────────
+function renderInterp() {
+  const d = VIEW[VIEW.length - 1];
+  const [s5,,col5]   = signal5d(d.r5);
+  const [s10,,col10] = signal5d(d.r10);
+  const [sT,,colT]   = signalT2108(d.t2108);
+  const [sQ,,colQ]   = signalQtr(d.up25q, d.dn25q);
+  const [thrustLabel, thrustCol, thrustDesc] =
+    d.up4 > 300 ? ['STRONG THRUST','green','Rare high-conviction buy signal. >300 stocks up 4%+ in a single day.'] :
+    d.up4 > 150 ? ['MODERATE','amber','Normal momentum day. Watch for follow-through.'] :
+                  ['WEAK','red','Below-average buying interest.'];
+  const items = [
+    { title:'Thrust Signal (Daily)', signal:thrustLabel, color:colMap[thrustCol],
+      desc:`${d.up4} stocks up 4%+ vs ${d.dn4} down 4%+. ${thrustDesc}` },
+    { title:'Short-Term Trend (5D)', signal:s5, color:colMap[col5],
+      desc:`5-day ratio: ${d.r5.toFixed(2)}. Values >2.0 = strong bull phase. <1.0 = distribution.` },
+    { title:'Medium-Term Trend (10D)', signal:s10, color:colMap[col10],
+      desc:`10-day ratio: ${d.r10.toFixed(2)}. Confirms: ${d.r5>=1.5&&d.r10>=1.2?'both bullish — strong conviction':d.r5<1.0&&d.r10<0.8?'both bearish — avoid longs':'mixed — wait for clarity'}.` },
+    { title:'Quarter Breadth (25%/90d)', signal:sQ, color:colMap[colQ],
+      desc:`${d.up25q} stocks up 25%+ vs ${d.dn25q} down 25%+ this quarter. Ratio: ${(d.up25q/Math.max(d.dn25q,1)).toFixed(2)}. Core health indicator.` },
+    { title:'Market Internals (T2108)', signal:sT, color:colMap[colT],
+      desc:`${d.t2108.toFixed(1)}% of stocks above 40-day MA. Bull market = 40–70%. Oversold bounces occur near 15–20%.` },
+    { title:'Monthly Momentum (25%/Mo)', signal:d.up25m>d.dn25m?'POSITIVE':'NEGATIVE',
+      color:d.up25m>d.dn25m?'#3fb950':'#f85149',
+      desc:`${d.up25m} up 25%+ this month vs ${d.dn25m} down. Ratio: ${(d.up25m/Math.max(d.dn25m,1)).toFixed(2)}. Fast-mover breadth.` },
+  ];
+  document.getElementById('interp').innerHTML = items.map(i => `
+    <div class="interp-card">
+      <div class="interp-title">${i.title}</div>
+      <div class="interp-signal" style="color:${i.color}">${i.signal}</div>
+      <div class="interp-desc">${i.desc}</div>
+    </div>`).join('');
+}
+
+// ── Render: charts ────────────────────────────────────────────────────────
+function makeChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), config);
+}
+const GRID = { color: 'rgba(48,54,61,0.8)' };
+const TICK = { color: '#8b949e', font: { size: 11 } };
+const TOOLTIP = { backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1, titleColor:'#e6edf3', bodyColor:'#8b949e', padding:10 };
+const LEGEND  = { labels: { color:'#8b949e', font:{size:11}, boxWidth:12, padding:16 } };
+
+function baseOpts(extra) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:LEGEND, tooltip:TOOLTIP },
+    scales:{ x:{ grid:GRID, ticks:{...TICK,maxTicksLimit:8,maxRotation:0} }, y:{ grid:GRID, ticks:TICK }, ...(extra||{}) }
+  };
+}
+
+function renderCharts() {
+  const labels = VIEW.map(d => d.date);
+
+  // S&P + 5D ratio
+  const spOpts = baseOpts({ y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:TICK } });
+  spOpts.plugins.annotation = { annotations: {
+    b15:{ type:'line', yMin:1.5, yMax:1.5, yScaleID:'y1', borderColor:'rgba(63,185,80,0.35)', borderDash:[4,4] },
+    b10:{ type:'line', yMin:1.0, yMax:1.0, yScaleID:'y1', borderColor:'rgba(210,153,34,0.35)', borderDash:[4,4] }
+  }};
+  makeChart('chartSP', { type:'line', data:{ labels, datasets:[
+    { label:'S&P 500', data:VIEW.map(d=>d.sp), borderColor:'#58a6ff', borderWidth:1.5, pointRadius:0, fill:false, yAxisID:'y', tension:0.1 },
+    { label:'5D Ratio', data:VIEW.map(d=>d.r5), borderColor:'#3fb950', borderWidth:1.5, pointRadius:0, fill:false, yAxisID:'y1', tension:0.1 }
+  ]}, options: spOpts });
+
+  // 5D + 10D ratios
+  const rOpts = baseOpts();
+  rOpts.plugins.annotation = { annotations: {
+    r20:{ type:'line', yMin:2.0, yMax:2.0, borderColor:'rgba(63,185,80,0.4)',  borderDash:[4,4] },
+    r15:{ type:'line', yMin:1.5, yMax:1.5, borderColor:'rgba(63,185,80,0.25)', borderDash:[4,4] },
+    r10:{ type:'line', yMin:1.0, yMax:1.0, borderColor:'rgba(210,153,34,0.5)', borderDash:[4,4] },
+    r07:{ type:'line', yMin:0.7, yMax:0.7, borderColor:'rgba(248,81,73,0.3)',  borderDash:[4,4] }
+  }};
+  makeChart('chartRatios', { type:'line', data:{ labels, datasets:[
+    { label:'5-Day Ratio',  data:VIEW.map(d=>d.r5),  borderColor:'#3fb950', borderWidth:1.5, pointRadius:0, fill:false, tension:0.1 },
+    { label:'10-Day Ratio', data:VIEW.map(d=>d.r10), borderColor:'#bc8cff', borderWidth:1.5, pointRadius:0, fill:false, tension:0.1 }
+  ]}, options: rOpts });
+
+  // Daily thrust bar
+  const dOpts = baseOpts({ x:{ stacked:true, grid:GRID, ticks:{...TICK,maxTicksLimit:8,maxRotation:0} }, y:{ stacked:true, grid:GRID, ticks:TICK } });
+  makeChart('chartDaily', { type:'bar', data:{ labels, datasets:[
+    { label:'Up 4%+',   data:VIEW.map(d=>d.up4),  backgroundColor:'rgba(63,185,80,0.65)',  borderWidth:0 },
+    { label:'Down 4%+', data:VIEW.map(d=>-d.dn4), backgroundColor:'rgba(248,81,73,0.65)', borderWidth:0 }
+  ]}, options: dOpts });
+
+  // Quarter momentum
+  makeChart('chartQuarter', { type:'line', data:{ labels, datasets:[
+    { label:'Up 25%+ (Qtr)', data:VIEW.map(d=>d.up25q), borderColor:'#3fb950', borderWidth:1.5, pointRadius:0, fill:false, tension:0.1 },
+    { label:'Dn 25%+ (Qtr)', data:VIEW.map(d=>d.dn25q), borderColor:'#f85149', borderWidth:1.5, pointRadius:0, fill:false, tension:0.1 }
+  ]}, options: baseOpts() });
+
+  // T2108
+  const tOpts = baseOpts({ y:{ grid:GRID, ticks:TICK, min:0, max:100 } });
+  tOpts.plugins.annotation = { annotations: {
+    t60:{ type:'line', yMin:60, yMax:60, borderColor:'rgba(63,185,80,0.4)',  borderDash:[4,4], label:{ content:'Overbought 60', display:true, position:'start', color:'#3fb950', font:{size:9}, backgroundColor:'transparent', padding:2 } },
+    t40:{ type:'line', yMin:40, yMax:40, borderColor:'rgba(63,185,80,0.25)', borderDash:[4,4], label:{ content:'Bull zone 40',   display:true, position:'start', color:'#8b949e', font:{size:9}, backgroundColor:'transparent', padding:2 } },
+    t20:{ type:'line', yMin:20, yMax:20, borderColor:'rgba(248,81,73,0.4)',  borderDash:[4,4], label:{ content:'Oversold 20',    display:true, position:'start', color:'#f85149', font:{size:9}, backgroundColor:'transparent', padding:2 } }
+  }};
+  makeChart('chartT2108', { type:'line', data:{ labels, datasets:[
+    { label:'T2108', data:VIEW.map(d=>d.t2108), borderColor:'#d29922', borderWidth:1.5, pointRadius:0,
+      fill:{ target:'origin', above:'rgba(210,153,34,0.1)', below:'rgba(248,81,73,0.1)' }, tension:0.1 }
+  ]}, options: tOpts });
+
+  // 34-day momentum
+  makeChart('chart34d', { type:'line', data:{ labels, datasets:[
+    { label:'Up 13%+ (34d)', data:VIEW.map(d=>d.up13), borderColor:'#3fb950', borderWidth:1.5, pointRadius:0, fill:false, tension:0.1 },
+    { label:'Dn 13%+ (34d)', data:VIEW.map(d=>d.dn13), borderColor:'#f85149', borderWidth:1.5, pointRadius:0, fill:false, tension:0.1 }
+  ]}, options: baseOpts() });
+}
+
+// ── Render: table ─────────────────────────────────────────────────────────
+function renderTable() {
+  const recent = VIEW.slice(-20).reverse();
+  document.getElementById('recent-tbody').innerHTML = recent.map(d => {
+    const r5c = d.r5>=1.5?'up':d.r5>=1.0?'neu':'dn';
+    const r10c= d.r10>=1.2?'up':d.r10>=0.8?'neu':'dn';
+    const tc  = d.t2108>=40?'up':d.t2108>=25?'neu':'dn';
+    const rowcls = d.r5>=1.5&&d.r10>=1.2?'bull-row':d.r5<1.0&&d.r10<0.8?'bear-row':'';
+    return `<tr class="${rowcls}">
+      <td>${d.date}</td>
+      <td class="up">${d.up4}</td><td class="dn">${d.dn4}</td>
+      <td class="${r5c}">${d.r5.toFixed(2)}</td><td class="${r10c}">${d.r10.toFixed(2)}</td>
+      <td class="up">${d.up25q}</td><td class="dn">${d.dn25q}</td>
+      <td class="up">${d.up25m}</td><td class="dn">${d.dn25m}</td>
+      <td class="up">${d.up13}</td><td class="dn">${d.dn13}</td>
+      <td class="${tc}">${d.t2108.toFixed(1)}%</td>
+      <td>${d.sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAll() { renderCards(); renderInterp(); renderCharts(); renderTable(); }
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
