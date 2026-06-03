@@ -104,8 +104,8 @@
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(255,255,255,0.03); }
   .up { color: var(--green); } .dn { color: var(--red); } .neu { color: var(--amber); }
-  .bull-row { background: rgba(63,185,80,0.04); }
-  .bear-row { background: rgba(248,81,73,0.04); }
+  .bull-row { background: rgba(63,185,80,0.12); }
+  .bear-row { background: rgba(248,81,73,0.12); }
 
   footer { padding: 16px 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); text-align: center; }
   footer a { color: var(--blue); text-decoration: none; }
@@ -527,7 +527,7 @@ function renderTable() {
     const r5c = d.r5>=1.5?'up':d.r5>=1.0?'neu':'dn';
     const r10c= d.r10>=1.2?'up':d.r10>=0.8?'neu':'dn';
     const tc  = d.t2108>=40?'up':d.t2108>=25?'neu':'dn';
-    const rowcls = d.r5>=1.5&&d.r10>=1.2?'bull-row':d.r5<1.0&&d.r10<0.8?'bear-row':'';
+    const rowcls = d.up4 > d.dn4 ? 'bull-row' : d.dn4 > d.up4 ? 'bear-row' : '';
     return `<tr class="${rowcls}">
       <td>${d.date}</td>
       <td class="up">${d.up4}</td><td class="dn">${d.dn4}</td>
