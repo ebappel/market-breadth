@@ -103,7 +103,9 @@
   td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
   td:first-child { text-align: left; color: var(--muted); }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(255,255,255,0.03); }
+  tr:hover td { background: rgba(255,255,255,0.06); }
+  .bull-row:hover td, .bull-row-strong:hover td { background: rgba(63,185,80,0.20); }
+  .bear-row:hover td, .bear-row-strong:hover td { background: rgba(248,81,73,0.20); }
   .up { color: var(--green); } .dn { color: var(--red); } .neu { color: var(--amber); }
   .bull-row        { background: rgba(63,185,80,0.12); }
   .bull-row-strong { background: rgba(63,185,80,0.38); }
@@ -509,7 +511,8 @@ function renderCharts() {
   tOpts.plugins.annotation = { annotations: {
     t60:{ type:'line', yMin:60, yMax:60, borderColor:'rgba(63,185,80,0.4)',  borderDash:[4,4], label:{ content:'Overbought 60', display:true, position:'start', color:'#3fb950', font:{size:9}, backgroundColor:'transparent', padding:2 } },
     t40:{ type:'line', yMin:40, yMax:40, borderColor:'rgba(63,185,80,0.25)', borderDash:[4,4], label:{ content:'Bull zone 40',   display:true, position:'start', color:'#8b949e', font:{size:9}, backgroundColor:'transparent', padding:2 } },
-    t20:{ type:'line', yMin:20, yMax:20, borderColor:'rgba(248,81,73,0.4)',  borderDash:[4,4], label:{ content:'Oversold 20',    display:true, position:'start', color:'#f85149', font:{size:9}, backgroundColor:'transparent', padding:2 } }
+    t20:{ type:'line', yMin:20, yMax:20, borderColor:'rgba(248,81,73,0.4)',  borderDash:[4,4], label:{ content:'Oversold 20',    display:true, position:'start', color:'#f85149', font:{size:9}, backgroundColor:'transparent', padding:2 } },
+    t10:{ type:'line', yMin:10, yMax:10, borderColor:'rgba(248,81,73,0.7)',  borderDash:[4,4], label:{ content:'Sell your wife', display:true, position:'start', color:'#f85149', font:{size:9}, backgroundColor:'transparent', padding:2 } }
   }};
   makeChart('chartT2108', { type:'line', data:{ labels, datasets:[
     { label:'T2108', data:VIEW.map(d=>d.t2108), borderColor:'#d29922', borderWidth:1.5, pointRadius:0,
