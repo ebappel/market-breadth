@@ -527,7 +527,7 @@ function renderTable() {
     const r5c = d.r5>=1.5?'up':d.r5>=1.0?'neu':'dn';
     const r10c= d.r10>=1.2?'up':d.r10>=0.8?'neu':'dn';
     const tc  = d.t2108>=40?'up':d.t2108>=25?'neu':'dn';
-    const rowcls = d.up4 > d.dn4 ? 'bull-row' : d.dn4 > d.up4 ? 'bear-row' : '';
+    const rowcls = d.up4 >= 300 ? 'bull-row-strong' : d.dn4 >= 300 ? 'bear-row-strong' : d.up4 > d.dn4 ? 'bull-row' : d.dn4 > d.up4 ? 'bear-row' : '';
     return `<tr class="${rowcls}">
       <td>${d.date}</td>
       <td class="up">${d.up4}</td><td class="dn">${d.dn4}</td>
