@@ -512,8 +512,8 @@ function renderTable() {
   }
 
   // 4% thrust: dark if >=300, light by direction
-  function up4Bg(up, dn)  { return up >= 300 ? DG : up > dn ? LG : dn >= 300 ? DR : dn > up ? LR : ''; }
-  function dn4Bg(up, dn)  { return dn >= 300 ? DR : dn > up ? LR : up >= 300 ? DG : up > dn ? LG : ''; }
+  function up4Bg(up, dn)  { return up >= 300 ? DG : up > dn ? LG : dn > up ? LR : ''; }
+  function dn4Bg(up, dn)  { return dn >= 300 ? DR : dn > up ? LR : up > dn ? LG : ''; }
 
   // Ratios: green >=2, red <=0.5
   function ratioBg(v)     { return v >= 2.0 ? LG : v <= 0.5 ? LR : ''; }
