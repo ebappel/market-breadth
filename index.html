@@ -191,7 +191,7 @@
         <div class="legend-item"><div class="legend-dot" style="background:#154734"></div>Dark Green: Strong bullish / Extreme oversold</div>
         <div class="legend-item"><div class="legend-dot" style="background:#a6f1a6"></div>Light Green: Bullish</div>
         <div class="legend-item"><div class="legend-dot" style="background:#AB2328"></div>Dark Red: Strong bearish / Extreme overbought</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(255,114,118,0.45)"></div>Light Red: Bearish</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff7b7b"></div>Light Red: Bearish</div>
       </div>
       <div style="overflow-x:auto;">
         <table>
@@ -501,9 +501,9 @@ function renderCharts() {
 // ── Render: table ─────────────────────────────────────────────────────────
 function renderTable() {
   const recent = VIEW.slice(-20).reverse();
-  const LG = '#a6f1a6';
+  const LG = '#00e000';
   const DG = '#154734';
-  const LR = 'rgba(255,114,118,0.32)';
+  const LR = '#ff7b7b';
   const DR = '#AB2328';
 
   function cell(bg, val) {
