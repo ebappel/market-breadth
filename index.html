@@ -101,6 +101,7 @@
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(255,255,255,0.04) !important; }
   .up { color: var(--green); } .dn { color: var(--red); } .neu { color: var(--amber); }
+  td:nth-child(8), thead tr:nth-child(2) th:nth-child(7) { border-left: 2px solid var(--blue); }
 
   footer { padding: 16px 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); text-align: center; }
   footer a { color: var(--blue); text-decoration: none; }
@@ -188,7 +189,7 @@
       <h3>Recent Trading Days — Last 20 Sessions</h3>
       <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#154734"></div>Dark Green: Strong bullish / Extreme oversold</div>
-        <div class="legend-item"><div class="legend-dot" style="background:rgba(8,255,8,0.3)"></div>Light Green: Bullish</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#a6f1a6"></div>Light Green: Bullish</div>
         <div class="legend-item"><div class="legend-dot" style="background:#AB2328"></div>Dark Red: Strong bearish / Extreme overbought</div>
         <div class="legend-item"><div class="legend-dot" style="background:rgba(255,114,118,0.45)"></div>Light Red: Bearish</div>
       </div>
@@ -507,7 +508,7 @@ function renderTable() {
 
   function cell(bg, val) {
     if (!bg) return `<td>${val}</td>`;
-    const color = (bg === DG || bg === DR) ? '#ffffff' : 'var(--text)';
+    const color = (bg === DG || bg === DR) ? '#ffffff' : (bg === LG ? '#0d1117' : 'var(--text)');
     return `<td style="background:${bg};color:${color}">${val}</td>`;
   }
 
@@ -522,7 +523,7 @@ function renderTable() {
   function qtrUpBg(up, dn)  { return up < 200 ? DG : up > dn ? LG : up < dn ? LR : ''; }
   function qtrDnBg(up, dn)  { return up < 200 ? DG : dn > up ? LR : dn < up ? LG : ''; }
 
-  // 25% Mo: by direction
+  // 25% Mo / 13% 34d: by direction
   function dirUpBg(up, dn)  { return up > dn ? LG : up < dn ? LR : ''; }
   function dirDnBg(up, dn)  { return dn > up ? LR : dn < up ? LG : ''; }
 
