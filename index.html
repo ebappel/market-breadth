@@ -548,9 +548,8 @@ function renderTable() {
     const r5c  = d.r5  >= 1.5 ? 'up' : d.r5  >= 1.0 ? 'neu' : 'dn';
     const r10c = d.r10 >= 1.2 ? 'up' : d.r10 >= 0.8 ? 'neu' : 'dn';
     const tc   = d.t2108 >= 40 ? 'up' : d.t2108 >= 25 ? 'neu' : 'dn';
-    const dateBg = d.up4 >= 300 ? '#154734' : d.dn4 >= 300 ? '#AB2328' : d.up4 > d.dn4 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
-    return `<tr>
-      <td style="background:${dateBg};color:var(--text)">${d.date}</td>
+        return `<tr>
+      <td>${d.date}</td>
       <td style="background:${upBg(d.up4,500)};color:var(--text)">${d.up4}</td>
       <td style="background:${dnBg(d.dn4,500)};color:var(--text)">${d.dn4}</td>
       <td class="${r5c}">${d.r5.toFixed(2)}</td>
