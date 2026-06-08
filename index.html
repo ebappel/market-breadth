@@ -94,10 +94,13 @@
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { padding: 8px 12px; text-align: right; font-size: 11px; font-weight: 500; color: var(--muted); background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+  th { padding: 8px 12px; text-align: right; font-size: 11px; font-weight: 500; color: var(--muted); background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); white-space: nowrap; border-right: 1px solid var(--border); position: sticky; top: 0; z-index: 1; }
+  th:last-child { border-right: none; }
   th:first-child { text-align: left; }
-  td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }   td:last-child { border-right: none; }   th { border-right: 1px solid var(--border); }   th:last-child { border-right: none; }: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
-  td:first-child { text-align: left; }   tbody td { background: #ffffff; color: #0d1117; }
+  td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+  td:last-child { border-right: none; }
+  td:first-child { text-align: left; }
+  tbody td { background: #ffffff; color: #0d1117; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { box-shadow: inset 0 0 0 9999px rgba(0,0,0,0.07); }
   .up { color: var(--green); } .dn { color: var(--red); } .neu { color: var(--amber); }
@@ -186,7 +189,10 @@
     </div>
 
     <div class="table-panel">
-      <h3>Recent Trading Days — Last 20 Sessions</h3>
+      <h3 style="display:flex;justify-content:space-between;align-items:center;">
+        Recent Trading Days
+        <button onclick="document.getElementById('table-modal').style.display='flex'" style="font-size:11px;padding:3px 8px;cursor:pointer;background:rgba(255,255,255,0.1);border:1px solid var(--border);border-radius:4px;color:var(--muted);">&#x26F6; Expand</button>
+      </h3>
       <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#154734"></div>Dark Green: Strong bullish / Extreme oversold</div>
         <div class="legend-item"><div class="legend-dot" style="background:#a6f1a6"></div>Light Green: Bullish</div>
@@ -222,6 +228,22 @@
     Data: <a href="https://docs.google.com/spreadsheets/d/1O6OhS7ciA8zwfycBfGPbP2fWJnR0pn2UUvFZVDP9jpE" target="_blank">Stockbee Market Monitor</a>
     &bull; Fetched live from Google Sheets &bull; Last loaded: <span id="last-loaded"></span>
   </footer>
+</div>
+
+<!-- Expanded table modal -->
+<div id="table-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Recent Trading Days</span>
+      <button onclick="document.getElementById('table-modal').style.display='none'" style="font-size:16px;background:none;border:none;color:var(--muted);cursor:pointer;line-height:1;">&#x2715;</button>
+    </div>
+    <div style="overflow:auto;flex:1;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead id="modal-thead"></thead>
+        <tbody id="modal-tbody"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -501,7 +523,7 @@ function renderCharts() {
 // ── Render: table ─────────────────────────────────────────────────────────
 function renderTable() {
   const recent = VIEW.slice(-252).reverse();
-  const LG = '#00e000';
+  const LG = '#a6f1a6';
   const DG = '#154734';
   const LR = '#ff7b7b';
   const DR = '#AB2328';
@@ -512,29 +534,18 @@ function renderTable() {
     return `<td style="background:${bg};color:${color}">${val}</td>`;
   }
 
-  // 4% rust: dark if >=300, light by direction
-  function up4Bg(up, dn)  { return up >= 300 ? DG : up > dn ? LG : dn > up ? LR : ''; }
-  function dn4Bg(up, dn)  { return dn >= 300 ? DR : dn > up ? LR : up > dn ? LG : ''; }
-
-  // Ratios: green >=2, red <=0.5
-  function ratioBg(v)     { return v >= 2.0 ? LG : v <= 0.5 ? LR : ''; }
-
-  // 25% Qtr: dark green if up<200 (extreme oversold), else by direction
+  function up4Bg(up, dn)    { return up >= 300 ? DG : up > dn ? LG : dn > up ? LR : ''; }
+  function dn4Bg(up, dn)    { return dn >= 300 ? DR : dn > up ? LR : up > dn ? LG : ''; }
+  function ratioBg(v)       { return v >= 2.0 ? LG : v <= 0.5 ? LR : ''; }
   function qtrUpBg(up, dn)  { return up < 200 ? DG : up > dn ? LG : up < dn ? LR : ''; }
   function qtrDnBg(up, dn)  { return up < 200 ? DG : dn > up ? LR : dn < up ? LG : ''; }
-
-  // 25% Mo / 13% 34d: by direction
   function dirUpBg(up, dn)  { return up > dn ? LG : up < dn ? LR : ''; }
   function dirDnBg(up, dn)  { return dn > up ? LR : dn < up ? LG : ''; }
-
-  // 50% Mo: up>20 = overbought = red; dn>20 = oversold = green
   function mo50UpBg(up)     { return up > 20 ? LR : ''; }
   function mo50DnBg(dn)     { return dn > 20 ? LG : ''; }
-
-  // T2108: <10 dark green, <20 light green, >80 light red
   function t2108Bg(v)       { return v < 10 ? DG : v < 20 ? LG : v > 80 ? LR : ''; }
 
-  document.getElementById('recent-tbody').innerHTML = recent.map(d => `<tr>
+  const rows = recent.map(d => `<tr>
     <td>${d.date}</td>
     ${cell(up4Bg(d.up4, d.dn4), d.up4)}
     ${cell(dn4Bg(d.up4, d.dn4), d.dn4)}
@@ -551,6 +562,13 @@ function renderTable() {
     ${cell(t2108Bg(d.t2108), d.t2108.toFixed(1)+'%')}
     <td>${d.sp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
   </tr>`).join('');
+
+  document.getElementById('recent-tbody').innerHTML = rows;
+
+  const mTbody = document.getElementById('modal-tbody');
+  const mThead = document.getElementById('modal-thead');
+  if (mTbody) mTbody.innerHTML = rows;
+  if (mThead) mThead.innerHTML = document.querySelector('#recent-tbody').closest('table').querySelector('thead').innerHTML;
 }
 
 function renderAll() { renderCards(); renderInterp(); renderCharts(); renderTable(); }
