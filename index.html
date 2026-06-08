@@ -94,7 +94,7 @@
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { padding: 8px 12px; text-align: right; font-size: 11px; font-weight: 500; color: var(--muted); background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { padding: 8px 12px; text-align: right; font-size: 11px; font-weight: 500; color: var(--muted); background: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; z-index: 1; }
   th:first-child { text-align: left; }
   td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }   td:last-child { border-right: none; }   th { border-right: 1px solid var(--border); }   th:last-child { border-right: none; }: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
   td:first-child { text-align: left; }   tbody td { background: #ffffff; color: #0d1117; }
@@ -193,7 +193,7 @@
         <div class="legend-item"><div class="legend-dot" style="background:#AB2328"></div>Dark Red: Strong bearish / Extreme overbought</div>
         <div class="legend-item"><div class="legend-dot" style="background:#ff7b7b"></div>Light Red: Bearish</div>
       </div>
-      <div style="overflow-x:auto;">
+      <div style="overflow-x:auto; overflow-y:auto; max-height:520px;">
         <table>
           <thead>
             <tr>
@@ -500,7 +500,7 @@ function renderCharts() {
 
 // ── Render: table ─────────────────────────────────────────────────────────
 function renderTable() {
-  const recent = VIEW.slice(-20).reverse();
+  const recent = VIEW.slice(-252).reverse();
   const LG = '#00e000';
   const DG = '#154734';
   const LR = '#ff7b7b';
@@ -512,7 +512,7 @@ function renderTable() {
     return `<td style="background:${bg};color:${color}">${val}</td>`;
   }
 
-  // 4% thrust: dark if >=300, light by direction
+  // 4% rust: dark if >=300, light by direction
   function up4Bg(up, dn)  { return up >= 300 ? DG : up > dn ? LG : dn > up ? LR : ''; }
   function dn4Bg(up, dn)  { return dn >= 300 ? DR : dn > up ? LR : up > dn ? LG : ''; }
 
